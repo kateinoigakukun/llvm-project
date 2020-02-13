@@ -373,7 +373,16 @@ void WasmObjectWriter::startCustomSection(SectionBookkeeping &Section,
   Section.PayloadOffset = W.OS.tell();
 
   // Custom sections in wasm also have a string identifier.
-  writeString(Name);
+  if (Name != "__clangast") {
+    writeString(Name);
+  } else {
+    // pad section start to nearest 4 bytes for Clang PCH
+    uint64_t MinLength =
+        Section.PayloadOffset + 5ULL /* min ULEB128 length */ + Name.size();
+    uint64_t RoundedUpLength = (MinLength + 3ULL) & ~3ULL;
+    encodeULEB128(Name.size(), W.OS, 5 + (RoundedUpLength - MinLength));
+    W.OS << Name;
+  }
 
   // The position where the custom section starts.
   Section.ContentsOffset = W.OS.tell();
@@ -1097,6 +1106,10 @@ static bool isInSymtab(const MCSymbolWasm &Sym) {
     return false;
 
   if (Sym.isSection())
+    return false;
+
+  // Clang's precompiled headers are in a separate custom section
+  if (Sym.getName() == "__clang_ast")
     return false;
 
   return true;

@@ -1712,6 +1712,10 @@ MCSection *TargetLoweringObjectFileWasm::getExplicitSectionGlobal(
 
   StringRef Name = GO->getSection();
 
+  // Clang precompiled header data isn't needed at runtime; use custom section
+  if (Name == "__clangast")
+    return SectionKind::getMetadata();
+
   StringRef Group = "";
   if (const Comdat *C = getWasmComdat(GO)) {
     Group = C->getName();
