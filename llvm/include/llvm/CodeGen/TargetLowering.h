@@ -3443,7 +3443,7 @@ public:
   /// return the resulting token chain value.
   virtual SDValue LowerFormalArguments(
       SDValue /*Chain*/, CallingConv::ID /*CallConv*/, bool /*isVarArg*/,
-      const SmallVectorImpl<ISD::InputArg> & /*Ins*/, const SDLoc & /*dl*/,
+      SmallVectorImpl<ISD::InputArg> & /*Ins*/, const SDLoc & /*dl*/,
       SelectionDAG & /*DAG*/, SmallVectorImpl<SDValue> & /*InVals*/) const {
     llvm_unreachable("Not Implemented");
   }

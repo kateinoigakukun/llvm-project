@@ -718,10 +718,16 @@ WebAssemblyTargetLowering::LowerCall(CallLoweringInfo &CLI,
     std::swap(OutVals[0], OutVals[1]);
   }
 
+  bool HasSwiftSelfArg = false;
+  bool HasSwiftErrorArg = false;
   unsigned NumFixedArgs = 0;
   for (unsigned I = 0; I < Outs.size(); ++I) {
     const ISD::OutputArg &Out = Outs[I];
     SDValue &OutVal = OutVals[I];
+    if (Out.Flags.isSwiftSelf())
+      HasSwiftSelfArg = true;
+    if (Out.Flags.isSwiftError())
+      HasSwiftErrorArg = true;
     if (Out.Flags.isNest())
       fail(DL, DAG, "WebAssembly hasn't implemented nest arguments");
     if (Out.Flags.isInAlloca())
@@ -748,8 +754,32 @@ WebAssemblyTargetLowering::LowerCall(CallLoweringInfo &CLI,
     NumFixedArgs += Out.IsFixed;
   }
 
-  bool IsVarArg = CLI.IsVarArg;
   auto PtrVT = getPointerTy(Layout);
+
+  if (CallConv == CallingConv::Swift) {
+    if (!HasSwiftSelfArg) {
+      NumFixedArgs++;
+      ISD::OutputArg Arg;
+      Arg.Flags.setSwiftSelf();
+//      Outs.push_back(Arg);
+      CLI.Outs.push_back(Arg);
+      SDValue ArgVal = DAG.getConstant(0, DL, PtrVT);
+//      OutVals.push_back(ArgVal);
+      CLI.OutVals.push_back(ArgVal);
+    }
+    if (!HasSwiftErrorArg) {
+      NumFixedArgs++;
+      ISD::OutputArg Arg;
+      Arg.Flags.setSwiftError();
+//      Outs.push_back(Arg);
+      CLI.Outs.push_back(Arg);
+      SDValue ArgVal = DAG.getConstant(0, DL, PtrVT);
+//      OutVals.push_back(ArgVal);
+      CLI.OutVals.push_back(ArgVal);
+    }
+  }
+
+  bool IsVarArg = CLI.IsVarArg;
 
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
@@ -905,7 +935,7 @@ SDValue WebAssemblyTargetLowering::LowerReturn(
 
 SDValue WebAssemblyTargetLowering::LowerFormalArguments(
     SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
-    const SmallVectorImpl<ISD::InputArg> &Ins, const SDLoc &DL,
+    SmallVectorImpl<ISD::InputArg> &Ins, const SDLoc &DL,
     SelectionDAG &DAG, SmallVectorImpl<SDValue> &InVals) const {
   if (!callingConvSupported(CallConv))
     fail(DL, DAG, "WebAssembly doesn't support non-C calling conventions");
@@ -917,7 +947,13 @@ SDValue WebAssemblyTargetLowering::LowerFormalArguments(
   // of the incoming values before they're represented by virtual registers.
   MF.getRegInfo().addLiveIn(WebAssembly::ARGUMENTS);
 
+  bool HasSwiftErrorArg = false;
+  bool HasSwiftSelfArg = false;
   for (const ISD::InputArg &In : Ins) {
+    if (In.Flags.isSwiftSelf())
+      HasSwiftErrorArg = true;
+    if (In.Flags.isSwiftError())
+      HasSwiftSelfArg = true;
     if (In.Flags.isInAlloca())
       fail(DL, DAG, "WebAssembly hasn't implemented inalloca arguments");
     if (In.Flags.isNest())
@@ -936,7 +972,25 @@ SDValue WebAssemblyTargetLowering::LowerFormalArguments(
     // Record the number and types of arguments.
     MFI->addParam(In.VT);
   }
-
+  auto PtrVT = getPointerTy(MF.getDataLayout());
+  if (CallConv == CallingConv::Swift) {
+    if (!HasSwiftSelfArg) {
+      // InVals.push_back(DAG.getUNDEF(PtrVT));
+      ISD::ArgFlagsTy Flags;
+      Flags.setSwiftSelf();
+      ISD::InputArg SwiftSelfArg(Flags, PtrVT, PtrVT, true, Ins.size(), 0);
+      // Ins.push_back(SwiftSelfArg);
+      MFI->addParam(PtrVT);
+    }
+    if (!HasSwiftErrorArg) {
+      // InVals.push_back(DAG.getUNDEF(PtrVT));
+      ISD::ArgFlagsTy Flags;
+      Flags.setSwiftError();
+      ISD::InputArg SwiftErrorArg(Flags, PtrVT, PtrVT, true, Ins.size(), 0);
+      // Ins.push_back(SwiftErrorArg);
+      MFI->addParam(PtrVT);
+    }
+  }
   // Varargs are copied into a buffer allocated by the caller, and a pointer to
   // the buffer is passed as an argument.
   if (IsVarArg) {
@@ -956,10 +1010,17 @@ SDValue WebAssemblyTargetLowering::LowerFormalArguments(
   SmallVector<MVT, 4> Results;
   computeSignatureVTs(MF.getFunction().getFunctionType(), MF.getFunction(),
                       DAG.getTarget(), Params, Results);
+  if (CallConv == CallingConv::Swift) {
+    if (!HasSwiftErrorArg)
+      Params.push_back(PtrVT);
+    if (!HasSwiftSelfArg)
+      Params.push_back(PtrVT);
+  }
   for (MVT VT : Results)
     MFI->addResult(VT);
   // TODO: Use signatures in WebAssemblyMachineFunctionInfo too and unify
   // the param logic here with ComputeSignatureVTs
+
   assert(MFI->getParams().size() == Params.size() &&
          std::equal(MFI->getParams().begin(), MFI->getParams().end(),
                     Params.begin()));

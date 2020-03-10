@@ -149,6 +149,8 @@ bool FastISel::lowerArguments() {
     // parameter.
     return false;
 
+  if (FuncInfo.Fn->getCallingConv() == CallingConv::Swift)
+    return false;
   if (!fastLowerArguments())
     return false;
 

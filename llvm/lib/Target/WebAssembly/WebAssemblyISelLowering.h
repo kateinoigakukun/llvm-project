@@ -90,7 +90,7 @@ private:
                       SelectionDAG &DAG) const override;
   SDValue LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv,
                                bool IsVarArg,
-                               const SmallVectorImpl<ISD::InputArg> &Ins,
+                               SmallVectorImpl<ISD::InputArg> &Ins,
                                const SDLoc &DL, SelectionDAG &DAG,
                                SmallVectorImpl<SDValue> &InVals) const override;
 

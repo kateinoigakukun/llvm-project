@@ -244,6 +244,8 @@ bool FixFunctionBitcasts::runOnModule(Module &M) {
 
   // Collect all the places that need wrappers.
   for (Function &F : M) {
+    if (F.getCallingConv() == CallingConv::Swift)
+      continue;
     findUses(&F, F, Uses, ConstantBCs);
 
     // If we have a "main" function, and its type isn't
