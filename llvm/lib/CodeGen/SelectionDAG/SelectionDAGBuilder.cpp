@@ -9870,7 +9870,6 @@ void SelectionDAGISel::LowerArguments(const Function &F) {
                                              F.getCallingConv(), AssertOp));
       }
 
-      dbgs() << "i += " << NumParts << "\n";
       i += NumParts;
     }
 
@@ -9949,8 +9948,6 @@ void SelectionDAGISel::LowerArguments(const Function &F) {
 
   DAG.setRoot(NewRoot);
 
-  dbgs() << "i = " << i << "\n";
-  dbgs() << "InVals.size() = " << InVals.size() << "\n";
   assert(i == InVals.size() && "Argument register count mismatch!");
 
   // If any argument copy elisions occurred and we have debug info, update the

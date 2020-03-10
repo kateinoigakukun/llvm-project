@@ -1011,8 +1011,6 @@ SDValue WebAssemblyTargetLowering::LowerFormalArguments(
   computeSignatureVTs(MF.getFunction().getFunctionType(), MF.getFunction(),
                       DAG.getTarget(), Params, Results);
   if (CallConv == CallingConv::Swift) {
-    bool HasSwiftErrorArg = false;
-    bool HasSwiftSelfArg = false;
     if (!HasSwiftErrorArg)
       Params.push_back(PtrVT);
     if (!HasSwiftSelfArg)
@@ -1022,8 +1020,7 @@ SDValue WebAssemblyTargetLowering::LowerFormalArguments(
     MFI->addResult(VT);
   // TODO: Use signatures in WebAssemblyMachineFunctionInfo too and unify
   // the param logic here with ComputeSignatureVTs
-  dbgs() << "MFI->getParams().size() = " << MFI->getParams().size() << "\n";
-  dbgs() << "Params.size() = " << Params.size() << "\n";
+
   assert(MFI->getParams().size() == Params.size() &&
          std::equal(MFI->getParams().begin(), MFI->getParams().end(),
                     Params.begin()));
