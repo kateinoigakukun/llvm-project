@@ -9638,6 +9638,8 @@ void SelectionDAGISel::LowerArguments(const Function &F) {
   ArgCopyElisionMapTy ArgCopyElisionCandidates;
   findArgumentCopyElisionCandidates(DL, FuncInfo.get(),
                                     ArgCopyElisionCandidates);
+  bool HasSwiftErrorArg = false;
+  bool HasSwiftSelfArg = false;
 
   // Set up the incoming argument description vector.
   for (const Argument &Arg : F.args()) {
@@ -9651,6 +9653,8 @@ void SelectionDAGISel::LowerArguments(const Function &F) {
       FinalType = Arg.getParamByValType();
     bool NeedsRegBlock = TLI->functionArgumentNeedsConsecutiveRegisters(
         FinalType, F.getCallingConv(), F.isVarArg());
+    HasSwiftErrorArg |= Arg.hasAttribute(Attribute::SwiftError);
+    HasSwiftSelfArg |= Arg.hasAttribute(Attribute::SwiftSelf);
     for (unsigned Value = 0, NumValues = ValueVTs.size();
          Value != NumValues; ++Value) {
       EVT VT = ValueVTs[Value];
@@ -9866,6 +9870,7 @@ void SelectionDAGISel::LowerArguments(const Function &F) {
                                              F.getCallingConv(), AssertOp));
       }
 
+      dbgs() << "i += " << NumParts << "\n";
       i += NumParts;
     }
 
@@ -9928,6 +9933,15 @@ void SelectionDAGISel::LowerArguments(const Function &F) {
     }
   }
 
+  if (F.getCallingConv() == CallingConv::Swift) {
+    if (!HasSwiftSelfArg) {
+      i++;
+    }
+    if (!HasSwiftErrorArg) {
+      i++;
+    }
+  }
+
   if (!Chains.empty()) {
     Chains.push_back(NewRoot);
     NewRoot = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, Chains);
@@ -9935,6 +9949,8 @@ void SelectionDAGISel::LowerArguments(const Function &F) {
 
   DAG.setRoot(NewRoot);
 
+  dbgs() << "i = " << i << "\n";
+  dbgs() << "InVals.size() = " << InVals.size() << "\n";
   assert(i == InVals.size() && "Argument register count mismatch!");
 
   // If any argument copy elisions occurred and we have debug info, update the

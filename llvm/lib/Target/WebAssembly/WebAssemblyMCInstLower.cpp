@@ -50,6 +50,7 @@ WebAssemblyMCInstLower::GetGlobalAddressSymbol(const MachineOperand &MO) const {
   auto *WasmSym = cast<MCSymbolWasm>(Printer.getSymbol(Global));
 
   if (const auto *FuncTy = dyn_cast<FunctionType>(Global->getValueType())) {
+    const auto F = dyn_cast<Function>(Global);
     const MachineFunction &MF = *MO.getParent()->getParent()->getParent();
     const TargetMachine &TM = MF.getTarget();
     const Function &CurrentFunc = MF.getFunction();
@@ -57,6 +58,19 @@ WebAssemblyMCInstLower::GetGlobalAddressSymbol(const MachineOperand &MO) const {
     SmallVector<MVT, 1> ResultMVTs;
     SmallVector<MVT, 4> ParamMVTs;
     computeSignatureVTs(FuncTy, CurrentFunc, TM, ParamMVTs, ResultMVTs);
+    if (F->getCallingConv() == CallingConv::Swift) {
+      MVT PtrVT = MVT::getIntegerVT(TM.createDataLayout().getPointerSizeInBits());
+      bool HasSwiftErrorArg = false;
+      bool HasSwiftSelfArg = false;
+      for (const auto &Arg : F->args()) {
+        HasSwiftErrorArg |= Arg.hasAttribute(Attribute::SwiftError);
+        HasSwiftSelfArg |= Arg.hasAttribute(Attribute::SwiftSelf);
+      }
+      if (!HasSwiftErrorArg)
+        ParamMVTs.push_back(PtrVT);
+      if (!HasSwiftSelfArg)
+        ParamMVTs.push_back(PtrVT);
+    }
 
     auto Signature = signatureFromMVTs(ResultMVTs, ParamMVTs);
     WasmSym->setSignature(Signature.get());
