@@ -9638,8 +9638,6 @@ void SelectionDAGISel::LowerArguments(const Function &F) {
   ArgCopyElisionMapTy ArgCopyElisionCandidates;
   findArgumentCopyElisionCandidates(DL, FuncInfo.get(),
                                     ArgCopyElisionCandidates);
-  bool HasSwiftErrorArg = false;
-  bool HasSwiftSelfArg = false;
 
   // Set up the incoming argument description vector.
   for (const Argument &Arg : F.args()) {
@@ -9653,8 +9651,6 @@ void SelectionDAGISel::LowerArguments(const Function &F) {
       FinalType = Arg.getParamByValType();
     bool NeedsRegBlock = TLI->functionArgumentNeedsConsecutiveRegisters(
         FinalType, F.getCallingConv(), F.isVarArg());
-    HasSwiftErrorArg |= Arg.hasAttribute(Attribute::SwiftError);
-    HasSwiftSelfArg |= Arg.hasAttribute(Attribute::SwiftSelf);
     for (unsigned Value = 0, NumValues = ValueVTs.size();
          Value != NumValues; ++Value) {
       EVT VT = ValueVTs[Value];

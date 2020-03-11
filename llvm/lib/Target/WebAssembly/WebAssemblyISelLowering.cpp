@@ -724,10 +724,8 @@ WebAssemblyTargetLowering::LowerCall(CallLoweringInfo &CLI,
   for (unsigned I = 0; I < Outs.size(); ++I) {
     const ISD::OutputArg &Out = Outs[I];
     SDValue &OutVal = OutVals[I];
-    if (Out.Flags.isSwiftSelf())
-      HasSwiftSelfArg = true;
-    if (Out.Flags.isSwiftError())
-      HasSwiftErrorArg = true;
+    HasSwiftSelfArg |= Out.Flags.isSwiftSelf();
+    HasSwiftErrorArg |= Out.Flags.isSwiftError();
     if (Out.Flags.isNest())
       fail(DL, DAG, "WebAssembly hasn't implemented nest arguments");
     if (Out.Flags.isInAlloca())
@@ -754,6 +752,7 @@ WebAssemblyTargetLowering::LowerCall(CallLoweringInfo &CLI,
     NumFixedArgs += Out.IsFixed;
   }
 
+  bool IsVarArg = CLI.IsVarArg;
   auto PtrVT = getPointerTy(Layout);
 
   if (CallConv == CallingConv::Swift) {
@@ -761,25 +760,19 @@ WebAssemblyTargetLowering::LowerCall(CallLoweringInfo &CLI,
       NumFixedArgs++;
       ISD::OutputArg Arg;
       Arg.Flags.setSwiftSelf();
-//      Outs.push_back(Arg);
       CLI.Outs.push_back(Arg);
-      SDValue ArgVal = DAG.getConstant(0, DL, PtrVT);
-//      OutVals.push_back(ArgVal);
+      SDValue ArgVal = DAG.getUNDEF(PtrVT);
       CLI.OutVals.push_back(ArgVal);
     }
     if (!HasSwiftErrorArg) {
       NumFixedArgs++;
       ISD::OutputArg Arg;
       Arg.Flags.setSwiftError();
-//      Outs.push_back(Arg);
       CLI.Outs.push_back(Arg);
-      SDValue ArgVal = DAG.getConstant(0, DL, PtrVT);
-//      OutVals.push_back(ArgVal);
+      SDValue ArgVal = DAG.getUNDEF(PtrVT);
       CLI.OutVals.push_back(ArgVal);
     }
   }
-
-  bool IsVarArg = CLI.IsVarArg;
 
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
@@ -950,10 +943,8 @@ SDValue WebAssemblyTargetLowering::LowerFormalArguments(
   bool HasSwiftErrorArg = false;
   bool HasSwiftSelfArg = false;
   for (const ISD::InputArg &In : Ins) {
-    if (In.Flags.isSwiftSelf())
-      HasSwiftErrorArg = true;
-    if (In.Flags.isSwiftError())
-      HasSwiftSelfArg = true;
+    HasSwiftSelfArg |= In.Flags.isSwiftSelf();
+    HasSwiftErrorArg |= In.Flags.isSwiftError();
     if (In.Flags.isInAlloca())
       fail(DL, DAG, "WebAssembly hasn't implemented inalloca arguments");
     if (In.Flags.isNest())
@@ -975,19 +966,9 @@ SDValue WebAssemblyTargetLowering::LowerFormalArguments(
   auto PtrVT = getPointerTy(MF.getDataLayout());
   if (CallConv == CallingConv::Swift) {
     if (!HasSwiftSelfArg) {
-      // InVals.push_back(DAG.getUNDEF(PtrVT));
-      ISD::ArgFlagsTy Flags;
-      Flags.setSwiftSelf();
-      ISD::InputArg SwiftSelfArg(Flags, PtrVT, PtrVT, true, Ins.size(), 0);
-      // Ins.push_back(SwiftSelfArg);
       MFI->addParam(PtrVT);
     }
     if (!HasSwiftErrorArg) {
-      // InVals.push_back(DAG.getUNDEF(PtrVT));
-      ISD::ArgFlagsTy Flags;
-      Flags.setSwiftError();
-      ISD::InputArg SwiftErrorArg(Flags, PtrVT, PtrVT, true, Ins.size(), 0);
-      // Ins.push_back(SwiftErrorArg);
       MFI->addParam(PtrVT);
     }
   }
@@ -1020,7 +1001,6 @@ SDValue WebAssemblyTargetLowering::LowerFormalArguments(
     MFI->addResult(VT);
   // TODO: Use signatures in WebAssemblyMachineFunctionInfo too and unify
   // the param logic here with ComputeSignatureVTs
-
   assert(MFI->getParams().size() == Params.size() &&
          std::equal(MFI->getParams().begin(), MFI->getParams().end(),
                     Params.begin()));
