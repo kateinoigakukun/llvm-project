@@ -754,6 +754,10 @@ bool WebAssemblyFastISel::selectCall(const Instruction *I) {
   if (Func && Func->isIntrinsic())
     return false;
 
+  // TMP: Avoid to use fast-path when swiftcc
+  if (Call->getCallingConv() == CallingConv::Swift)
+    return false;
+
   bool IsDirect = Func != nullptr;
   if (!IsDirect && isa<ConstantExpr>(Call->getCalledValue()))
     return false;
