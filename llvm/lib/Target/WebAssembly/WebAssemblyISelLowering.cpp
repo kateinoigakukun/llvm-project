@@ -935,7 +935,7 @@ SDValue WebAssemblyTargetLowering::LowerReturn(
 
 SDValue WebAssemblyTargetLowering::LowerFormalArguments(
     SDValue Chain, CallingConv::ID CallConv, bool IsVarArg,
-    SmallVectorImpl<ISD::InputArg> &Ins, const SDLoc &DL,
+    const SmallVectorImpl<ISD::InputArg> &Ins, const SDLoc &DL,
     SelectionDAG &DAG, SmallVectorImpl<SDValue> &InVals) const {
   if (!callingConvSupported(CallConv))
     fail(DL, DAG, "WebAssembly doesn't support non-C calling conventions");

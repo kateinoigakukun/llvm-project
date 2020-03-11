@@ -1397,7 +1397,7 @@ namespace llvm {
 
     SDValue
     LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
-                         SmallVectorImpl<ISD::InputArg> &Ins,
+                         const SmallVectorImpl<ISD::InputArg> &Ins,
                          const SDLoc &dl, SelectionDAG &DAG,
                          SmallVectorImpl<SDValue> &InVals) const override;
     SDValue LowerCall(CallLoweringInfo &CLI,
