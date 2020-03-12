@@ -27,12 +27,12 @@ target triple = "wasm32-unknown-unknown"
 ; CHECK:  Section {
 ; CHECK:    Type: CUSTOM (0x0)
 ; CHECK:    Size: 4
-; CHECK:    Offset: 97
+; CHECK:    Offset: [[#OFFSET:]]
 ; CHECK:    Name: __clangast
 ; CHECK:  }
 ; CHECK:  Section {
 ; CHECK:    Type: CUSTOM (0x0)
 ; CHECK:    Size: 1
-; CHECK:    Offset: 124
+; CHECK:    Offset: [[#OFFSET + 27]]
 ; CHECK:    Name: anchor
 ; CHECK:  }
