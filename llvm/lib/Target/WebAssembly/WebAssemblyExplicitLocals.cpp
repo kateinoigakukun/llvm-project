@@ -218,6 +218,8 @@ bool WebAssemblyExplicitLocals::runOnMachineFunction(MachineFunction &MF) {
   // Start assigning local numbers after the last parameter.
   unsigned CurLocal = static_cast<unsigned>(MFI.getParams().size());
 
+  // For swiftcc, additional swiftself and swifterror paramsters are added
+  // if there aren't. Forward the cursor for the extra parameters.
   if (MF.getFunction().getCallingConv() == CallingConv::Swift) {
     bool HasSwiftErrorArg = false;
     bool HasSwiftSelfArg = false;

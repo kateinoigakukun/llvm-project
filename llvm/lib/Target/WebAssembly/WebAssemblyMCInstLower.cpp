@@ -58,6 +58,10 @@ WebAssemblyMCInstLower::GetGlobalAddressSymbol(const MachineOperand &MO) const {
     SmallVector<MVT, 1> ResultMVTs;
     SmallVector<MVT, 4> ParamMVTs;
     computeSignatureVTs(FuncTy, CurrentFunc, TM, ParamMVTs, ResultMVTs);
+
+    // For swiftcc, emit additional swiftself and swifterror parameters
+    // if there aren't. These additional parameters are also passed for caller.
+    // They are necessary to match callee and caller signature for indirect call.
     if (F->getCallingConv() == CallingConv::Swift) {
       MVT PtrVT = MVT::getIntegerVT(TM.createDataLayout().getPointerSizeInBits());
       bool HasSwiftErrorArg = false;

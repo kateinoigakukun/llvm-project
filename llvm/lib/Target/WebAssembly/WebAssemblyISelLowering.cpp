@@ -755,6 +755,9 @@ WebAssemblyTargetLowering::LowerCall(CallLoweringInfo &CLI,
   bool IsVarArg = CLI.IsVarArg;
   auto PtrVT = getPointerTy(Layout);
 
+  // For swiftcc, emit additional swiftself and swifterror arguments
+  // if there aren't. These additional arguments are also added for callee signature
+  // They are necessary to match callee and caller signature for indirect call.
   if (CallConv == CallingConv::Swift) {
     if (!HasSwiftSelfArg) {
       NumFixedArgs++;
@@ -963,6 +966,10 @@ SDValue WebAssemblyTargetLowering::LowerFormalArguments(
     // Record the number and types of arguments.
     MFI->addParam(In.VT);
   }
+
+  // For swiftcc, emit additional swiftself and swifterror arguments
+  // if there aren't. These additional arguments are also added for callee signature
+  // They are necessary to match callee and caller signature for indirect call.
   auto PtrVT = getPointerTy(MF.getDataLayout());
   if (CallConv == CallingConv::Swift) {
     if (!HasSwiftSelfArg) {

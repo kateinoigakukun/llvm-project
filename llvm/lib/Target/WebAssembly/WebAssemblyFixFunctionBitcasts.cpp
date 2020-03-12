@@ -244,6 +244,8 @@ bool FixFunctionBitcasts::runOnModule(Module &M) {
 
   // Collect all the places that need wrappers.
   for (Function &F : M) {
+    // Skip to fix when the function is swiftcc because swiftcc allows
+    // bitcast type difference for swiftself and swifterror.
     if (F.getCallingConv() == CallingConv::Swift)
       continue;
     findUses(&F, F, Uses, ConstantBCs);
