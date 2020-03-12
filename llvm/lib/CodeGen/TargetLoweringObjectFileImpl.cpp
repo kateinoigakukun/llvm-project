@@ -1716,7 +1716,7 @@ MCSection *TargetLoweringObjectFileWasm::getExplicitSectionGlobal(
   // TODO: This special case may be generalized as wasm binary format
   // https://github.com/WebAssembly/tool-conventions/issues/138
   if (Name == "__clangast")
-    return SectionKind::getMetadata();
+    Kind = SectionKind::getMetadata();
 
   StringRef Group = "";
   if (const Comdat *C = getWasmComdat(GO)) {
