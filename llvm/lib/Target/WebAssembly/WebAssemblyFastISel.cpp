@@ -640,6 +640,9 @@ bool WebAssemblyFastISel::fastLowerArguments() {
   if (F->isVarArg())
     return false;
 
+  if (FuncInfo.Fn->getCallingConv() == CallingConv::Swift)
+    return false;
+
   unsigned I = 0;
   for (auto const &Arg : F->args()) {
     const AttributeList &Attrs = F->getAttributes();
@@ -754,7 +757,6 @@ bool WebAssemblyFastISel::selectCall(const Instruction *I) {
   if (Func && Func->isIntrinsic())
     return false;
 
-  // TMP: Avoid to use fast-path when swiftcc
   if (Call->getCallingConv() == CallingConv::Swift)
     return false;
 
