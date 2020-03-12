@@ -1713,6 +1713,8 @@ MCSection *TargetLoweringObjectFileWasm::getExplicitSectionGlobal(
   StringRef Name = GO->getSection();
 
   // Clang precompiled header data isn't needed at runtime; use custom section
+  // TODO: This special case may be generalized as wasm binary format
+  // https://github.com/WebAssembly/tool-conventions/issues/138
   if (Name == "__clangast")
     return SectionKind::getMetadata();
 
