@@ -577,8 +577,7 @@ getMachineOpValue(const MCInst &MI, const MCOperand &MO,
   } else if (MO.isImm()) {
     return static_cast<unsigned>(MO.getImm());
   } else if (MO.isFPImm()) {
-    return static_cast<unsigned>(APFloat(MO.getFPImm())
-                     .bitcastToAPInt().getHiBits(32).getLimitedValue());
+    return static_cast<unsigned>(MO.getFPImm());
   }
 
   llvm_unreachable("Unable to encode MCOperand!");

@@ -39,8 +39,14 @@ public:
     return *this;
   }
 
+  /// Add a new single floating point immediate operand.
+  MCInstBuilder &addSFPImm(uint32_t Val) {
+    Inst.addOperand(MCOperand::createSFPImm(Val));
+    return *this;
+  }
+
   /// Add a new floating point immediate operand.
-  MCInstBuilder &addFPImm(double Val) {
+  MCInstBuilder &addFPImm(uint64_t Val) {
     Inst.addOperand(MCOperand::createFPImm(Val));
     return *this;
   }

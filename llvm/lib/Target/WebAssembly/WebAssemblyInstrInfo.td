@@ -116,13 +116,13 @@ def WebAssemblythrow : SDNode<"WebAssemblyISD::THROW", SDT_WebAssemblyThrow,
 
 // Default Operand has AsmOperandClass "Imm" which is for integers (and
 // symbols), so specialize one for floats:
-def FPImmAsmOperand : AsmOperandClass {
-  let Name = "FPImm";
+class FPImmAsmOperand<ValueType ty> : AsmOperandClass {
+  let Name = "FPImm" # ty;
   let PredicateMethod = "isFPImm";
 }
 
 class FPOperand<ValueType ty> : Operand<ty> {
-  AsmOperandClass ParserMatchClass = FPImmAsmOperand;
+  AsmOperandClass ParserMatchClass = FPImmAsmOperand<ty>;
 }
 
 let OperandNamespace = "WebAssembly" in {

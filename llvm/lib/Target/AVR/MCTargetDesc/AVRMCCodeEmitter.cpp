@@ -255,10 +255,7 @@ unsigned AVRMCCodeEmitter::getMachineOpValue(const MCInst &MI,
   if (MO.isImm()) return static_cast<unsigned>(MO.getImm());
 
   if (MO.isFPImm())
-    return static_cast<unsigned>(APFloat(MO.getFPImm())
-                                     .bitcastToAPInt()
-                                     .getHiBits(32)
-                                     .getLimitedValue());
+    return static_cast<unsigned>(MO.getFPImm());
 
   // MO must be an Expr.
   assert(MO.isExpr());
