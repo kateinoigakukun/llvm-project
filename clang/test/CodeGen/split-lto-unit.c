@@ -9,4 +9,8 @@
 // ; Check that regular LTO has EnableSplitLTOUnit = 1
 // RUN: %clang_cc1 -flto -triple x86_64-pc-linux-gnu -emit-llvm-bc < %s | llvm-dis -o - | FileCheck %s --implicit-check-not="EnableSplitLTOUnit" --check-prefix=SPLIT
 
+// ; Check that !"EnableSplitLTOUnit" module flag not added multiple times
+// RUN: %clang_cc1 -flto -triple x86_64-pc-linux-gnu -emit-llvm-bc < %s -o %t.bc
+// RUN: %clang_cc1 -flto -triple x86_64-pc-linux-gnu -emit-llvm-bc -x ir < %t.bc | opt -verify -disable-output
+
 int main() {}
