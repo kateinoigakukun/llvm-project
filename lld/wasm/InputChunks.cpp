@@ -523,5 +523,24 @@ uint64_t InputSection::getTombstoneForSection(StringRef name) {
   return UINT64_C(-1);
 }
 
+StringRef InputChunk::getOutputSegmentName() const {
+  // We always merge .tbss and .tdata into a single TLS segment so all TLS
+  // symbols are be relative to single __tls_base.
+  if (isTLS())
+    return ".tdata";
+  StringRef name = getName();
+  if (!config->mergeDataSegments)
+    return name;
+  if (name.startswith(".text."))
+    return ".text";
+  if (name.startswith(".data."))
+    return ".data";
+  if (name.startswith(".bss."))
+    return ".bss";
+  if (name.startswith(".rodata."))
+    return ".rodata";
+  return name;
+}
+
 } // namespace wasm
 } // namespace lld

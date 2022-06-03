@@ -854,25 +854,6 @@ void Writer::assignIndexes() {
   out.tableSec->assignIndexes();
 }
 
-static StringRef getOutputDataSegmentName(const InputChunk &seg) {
-  // We always merge .tbss and .tdata into a single TLS segment so all TLS
-  // symbols are be relative to single __tls_base.
-  if (seg.isTLS())
-    return ".tdata";
-  StringRef name = seg.getName();
-  if (!config->mergeDataSegments)
-    return name;
-  if (name.startswith(".text."))
-    return ".text";
-  if (name.startswith(".data."))
-    return ".data";
-  if (name.startswith(".bss."))
-    return ".bss";
-  if (name.startswith(".rodata."))
-    return ".rodata";
-  return name;
-}
-
 OutputSegment *Writer::createOutputSegment(StringRef name) {
   LLVM_DEBUG(dbgs() << "new segment: " << name << "\n");
   OutputSegment *s = make<OutputSegment>(name);
@@ -889,7 +870,7 @@ void Writer::createOutputSegments() {
     for (InputChunk *segment : file->segments) {
       if (!segment->live)
         continue;
-      StringRef name = getOutputDataSegmentName(*segment);
+      StringRef name = segment->getOutputSegmentName();
       OutputSegment *s = nullptr;
       // When running in relocatable mode we can't merge segments that are part
       // of comdat groups since the ultimate linker needs to be able exclude or

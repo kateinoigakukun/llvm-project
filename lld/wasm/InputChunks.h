@@ -76,6 +76,7 @@ public:
   uint32_t getComdat() const { return comdat; }
   StringRef getComdatName() const;
   uint32_t getInputSectionOffset() const { return inputSectionOffset; }
+  StringRef getOutputSegmentName() const;
 
   size_t getNumRelocations() const { return relocations.size(); }
   void writeRelocations(llvm::raw_ostream &os) const;
