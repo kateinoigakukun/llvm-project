@@ -975,6 +975,7 @@ static bool callingConvSupported(CallingConv::ID CallConv) {
          CallConv == CallingConv::PreserveAll ||
          CallConv == CallingConv::CXX_FAST_TLS ||
          CallConv == CallingConv::WASM_EmscriptenInvoke ||
+         CallConv == CallingConv::SwiftTail ||
          CallConv == CallingConv::Swift;
 }
 
