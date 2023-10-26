@@ -126,18 +126,30 @@ static bool MIIsInTerminatorSequence(const MachineInstr &MI) {
 MachineBasicBlock::iterator
 llvm::findSplitPointForStackProtector(MachineBasicBlock *BB,
                                       const TargetInstrInfo &TII) {
+  llvm::dbgs() << "[katei debug]" << *BB << "\n";
   MachineBasicBlock::iterator SplitPoint = BB->getFirstTerminator();
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
   if (SplitPoint == BB->begin())
     return SplitPoint;
 
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " BB->empty() = " << BB->empty() << "\n";
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " BB->count() = " << BB->size() << "\n";
   MachineBasicBlock::iterator Start = BB->begin();
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " SplitPoint == BB->end() = " << (SplitPoint == BB->end()) << "\n";
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " BB->begin() == BB->end() = " << (BB->begin() == BB->end()) << "\n";
+
   MachineBasicBlock::iterator Previous = SplitPoint;
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
   do {
+    llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
     --Previous;
   } while (Previous != Start && Previous->isDebugInstr());
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " SplitPoint == BB->end() = " << (SplitPoint == BB->end()) << "\n";
 
   if (TII.isTailCall(*SplitPoint) &&
       Previous->getOpcode() == TII.getCallFrameDestroyOpcode()) {
+    llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
     // Call frames cannot be nested, so if this frame is describing the tail
     // call itself, then we must insert before the sequence even starts. For
     // example:
@@ -156,20 +168,25 @@ llvm::findSplitPointForStackProtector(MachineBasicBlock *BB,
     //     TAILJMP somewhere
     do {
       --Previous;
+      llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
       if (Previous->isCall())
         return SplitPoint;
     } while(Previous->getOpcode() != TII.getCallFrameSetupOpcode());
+    llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
 
     return Previous;
   }
 
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
   while (MIIsInTerminatorSequence(*Previous)) {
+    llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
     SplitPoint = Previous;
     if (Previous == Start)
       break;
     --Previous;
   }
 
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
   return SplitPoint;
 }
 

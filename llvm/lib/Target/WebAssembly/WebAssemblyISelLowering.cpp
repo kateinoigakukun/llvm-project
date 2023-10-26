@@ -541,17 +541,35 @@ static MachineBasicBlock *
 LowerCallResults(MachineInstr &CallResults, DebugLoc DL, MachineBasicBlock *BB,
                  const WebAssemblySubtarget *Subtarget,
                  const TargetInstrInfo &TII) {
+
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " " << CallResults << "\n";
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
+  CallResults.getParent()->getParent()->dump();
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__
+               << " CallResults.getPrevNode() = " << CallResults.getPrevNode() << "\n";
   MachineInstr &CallParams = *CallResults.getPrevNode();
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__
+               << " CallParams.getOpcode() == WebAssembly::CALL_PARAMS = "
+               << (CallParams.getOpcode() == WebAssembly::CALL_PARAMS) << "\n";
   assert(CallParams.getOpcode() == WebAssembly::CALL_PARAMS);
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__
+               << " CallResults.getOpcode() == WebAssembly::CALL_RESULTS = "
+               << (CallResults.getOpcode() == WebAssembly::CALL_RESULTS) << "\n";
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__
+               << " CallResults.getOpcode() == WebAssembly::CALL_RESULTS = "
+               << (CallResults.getOpcode() == WebAssembly::RET_CALL_RESULTS) << "\n";
   assert(CallResults.getOpcode() == WebAssembly::CALL_RESULTS ||
          CallResults.getOpcode() == WebAssembly::RET_CALL_RESULTS);
 
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
   bool IsIndirect =
       CallParams.getOperand(0).isReg() || CallParams.getOperand(0).isFI();
   bool IsRetCall = CallResults.getOpcode() == WebAssembly::RET_CALL_RESULTS;
 
   bool IsFuncrefCall = false;
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
   if (IsIndirect && CallParams.getOperand(0).isReg()) {
+    llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
     Register Reg = CallParams.getOperand(0).getReg();
     const MachineFunction *MF = BB->getParent();
     const MachineRegisterInfo &MRI = MF->getRegInfo();
@@ -560,6 +578,7 @@ LowerCallResults(MachineInstr &CallResults, DebugLoc DL, MachineBasicBlock *BB,
     assert(!IsFuncrefCall || Subtarget->hasReferenceTypes());
   }
 
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
   unsigned CallOp;
   if (IsIndirect && IsRetCall) {
     CallOp = WebAssembly::RET_CALL_INDIRECT;
@@ -575,6 +594,7 @@ LowerCallResults(MachineInstr &CallResults, DebugLoc DL, MachineBasicBlock *BB,
   const MCInstrDesc &MCID = TII.get(CallOp);
   MachineInstrBuilder MIB(MF, MF.CreateMachineInstr(MCID, DL));
 
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
   // See if we must truncate the function pointer.
   // CALL_INDIRECT takes an i32, but in wasm64 we represent function pointers
   // as 64-bit for uniformity with other pointer types.
@@ -611,6 +631,7 @@ LowerCallResults(MachineInstr &CallResults, DebugLoc DL, MachineBasicBlock *BB,
       CallParams.addOperand(FnPtr);
   }
 
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
   for (auto Def : CallResults.defs())
     MIB.add(Def);
 
@@ -634,6 +655,7 @@ LowerCallResults(MachineInstr &CallResults, DebugLoc DL, MachineBasicBlock *BB,
     }
   }
 
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
   for (auto Use : CallParams.uses())
     MIB.add(Use);
 
@@ -641,6 +663,7 @@ LowerCallResults(MachineInstr &CallResults, DebugLoc DL, MachineBasicBlock *BB,
   CallParams.eraseFromParent();
   CallResults.eraseFromParent();
 
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
   // If this is a funcref call, to avoid hidden GC roots, we need to clear the
   // table slot with ref.null upon call_indirect return.
   //
@@ -673,6 +696,7 @@ LowerCallResults(MachineInstr &CallResults, DebugLoc DL, MachineBasicBlock *BB,
     BB->insertAfter(RefNull->getIterator(), TableSet);
   }
 
+  llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
   return BB;
 }
 

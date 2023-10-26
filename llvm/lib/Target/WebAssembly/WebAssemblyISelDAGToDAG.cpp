@@ -280,6 +280,8 @@ void WebAssemblyDAGToDAGISel::Select(SDNode *Node) {
     SDValue Link(CallParams, 0);
     MachineSDNode *CallResults =
         CurDAG->getMachineNode(Results, DL, Node->getVTList(), Link);
+    llvm::dbgs() << "[katei debug]" << __func__ << ":" << __LINE__ << " OK\n";
+    CallResults->dump();
     ReplaceNode(Node, CallResults);
     return;
   }
