@@ -40,6 +40,7 @@ public:
 
 private:
   void enqueue(Symbol *sym);
+  void enqueue(InputChunk *chunk);
   void enqueueInitFunctions(const ObjFile *sym);
   void mark();
   bool isCallCtorsLive();
@@ -71,6 +72,12 @@ void MarkLive::enqueue(Symbol *sym) {
     queue.push_back(chunk);
 }
 
+void MarkLive::enqueue(InputChunk *chunk) {
+  LLVM_DEBUG(dbgs() << "markLive: " << toString(chunk) << "\n");
+  chunk->live = true;
+  queue.push_back(chunk);
+}
+
 // The ctor functions are all referenced by the synthetic callCtors
 // function.  However, this function does not contain relocations so we
 // have to manually mark the ctors as live.
@@ -96,10 +103,17 @@ void MarkLive::run() {
   if (WasmSym::callDtors)
     enqueue(WasmSym::callDtors);
 
-  // Enqueue constructors in objects explicitly live from the command-line.
   for (const ObjFile *obj : symtab->objectFiles)
-    if (obj->isLive())
+    if (obj->isLive()) {
+      // Enqueue constructors in objects explicitly live from the command-line.
       enqueueInitFunctions(obj);
+
+      for (InputChunk *chunk : obj->segments) {
+        if (chunk->isNoStrip()) {
+          enqueue(chunk);
+        }
+      }
+    }
 
   mark();
 
