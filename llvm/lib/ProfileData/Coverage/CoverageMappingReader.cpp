@@ -18,12 +18,14 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/BinaryFormat/Wasm.h"
 #include "llvm/Object/Archive.h"
 #include "llvm/Object/Binary.h"
 #include "llvm/Object/COFF.h"
 #include "llvm/Object/Error.h"
 #include "llvm/Object/MachOUniversal.h"
 #include "llvm/Object/ObjectFile.h"
+#include "llvm/Object/Wasm.h"
 #include "llvm/ProfileData/InstrProf.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compression.h"
@@ -952,6 +954,48 @@ static Expected<std::vector<SectionRef>> lookupSections(ObjectFile &OF,
   return Sections;
 }
 
+/// Find a section that matches \p Name and is allocatable at runtime.
+///
+/// Returns the contents of the section and its start offset in the object file.
+static Expected<std::pair<StringRef, uint64_t>>
+lookupAllocatableSection(ObjectFile &OF, StringRef Name) {
+  // On Wasm, allocatable sections can live only in data segments.
+  if (auto *WOF = dyn_cast<WasmObjectFile>(&OF)) {
+    std::vector<const WasmSegment *> Segments;
+    for (const auto &DebugName : WOF->debugNames()) {
+      if (DebugName.Type != wasm::NameType::DATA_SEGMENT ||
+          DebugName.Name != Name)
+        continue;
+      if (DebugName.Index >= WOF->dataSegments().size())
+        return make_error<CoverageMapError>(coveragemap_error::malformed);
+      auto &Segment = WOF->dataSegments()[DebugName.Index];
+      Segments.push_back(&Segment);
+    }
+    if (Segments.empty())
+      return make_error<CoverageMapError>(coveragemap_error::no_data_found);
+    if (Segments.size() != 1)
+      return make_error<CoverageMapError>(coveragemap_error::malformed);
+
+    const auto &Segment = *Segments.front();
+    auto &Data = Segment.Data;
+    StringRef Content(reinterpret_cast<const char *>(Data.Content.data()),
+                      Data.Content.size());
+    return std::make_pair(Content, Segment.SectionOffset);
+  }
+
+  // On other object file types, delegate to lookupSections to find the section.
+  auto Sections = lookupSections(OF, Name);
+  if (!Sections)
+    return Sections.takeError();
+  if (Sections->size() != 1)
+    return make_error<CoverageMapError>(coveragemap_error::malformed);
+  auto &Section = Sections->front();
+  auto ContentsOrErr = Section.getContents();
+  if (!ContentsOrErr)
+    return ContentsOrErr.takeError();
+  return std::make_pair(*ContentsOrErr, Section.getAddress());
+}
+
 static Expected<std::unique_ptr<BinaryCoverageReader>>
 loadBinaryFormat(std::unique_ptr<Binary> Bin, StringRef Arch,
                  StringRef CompilationDir = "",
@@ -982,9 +1026,9 @@ loadBinaryFormat(std::unique_ptr<Binary> Bin, StringRef Arch,
 
   // Look for the sections that we are interested in.
   auto ObjFormat = OF->getTripleObjectFormat();
-  auto NamesSection =
-      lookupSections(*OF, getInstrProfSectionName(IPSK_name, ObjFormat,
-                                                 /*AddSegmentInfo=*/false));
+  auto NamesSection = lookupAllocatableSection(
+      *OF, getInstrProfSectionName(IPSK_name, ObjFormat,
+                                   /*AddSegmentInfo=*/false));
   if (auto E = NamesSection.takeError())
     return std::move(E);
   auto CoverageSection =
@@ -1000,11 +1044,11 @@ loadBinaryFormat(std::unique_ptr<Binary> Bin, StringRef Arch,
     return CoverageMappingOrErr.takeError();
   StringRef CoverageMapping = CoverageMappingOrErr.get();
 
+  StringRef NamesContent;
+  uint64_t NamesAddress;
+  std::tie(NamesContent, NamesAddress) = *NamesSection;
   InstrProfSymtab ProfileNames;
-  std::vector<SectionRef> NamesSectionRefs = *NamesSection;
-  if (NamesSectionRefs.size() != 1)
-    return make_error<CoverageMapError>(coveragemap_error::malformed);
-  if (Error E = ProfileNames.create(NamesSectionRefs.back()))
+  if (Error E = ProfileNames.create(NamesContent, NamesAddress))
     return std::move(E);
 
   // Look for the coverage records section (Version4 only).
