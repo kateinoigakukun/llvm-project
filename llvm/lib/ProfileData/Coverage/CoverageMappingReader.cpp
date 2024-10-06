@@ -1044,6 +1044,16 @@ loadBinaryFormat(std::unique_ptr<Binary> Bin, StringRef Arch,
     return CoverageMappingOrErr.takeError();
   StringRef CoverageMapping = CoverageMappingOrErr.get();
 
+
+  // If the coverage mapping section is not aligned to 8 bytes, copy it to a
+  // new buffer that is. Wasm format typically has unaligned section contents
+  // because it doesn't have a good way to insert padding bytes.
+  std::unique_ptr<MemoryBuffer> CoverageMappingBufferOwner;
+  if (!isAddrAligned(Align(8), CoverageMapping.data())) {
+    CoverageMappingBufferOwner = MemoryBuffer::getMemBufferCopy(CoverageMapping);
+    CoverageMapping = CoverageMappingBufferOwner->getBuffer();
+  }
+
   StringRef NamesContent;
   uint64_t NamesAddress;
   std::tie(NamesContent, NamesAddress) = *NamesSection;
