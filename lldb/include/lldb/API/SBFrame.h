@@ -220,6 +220,9 @@ public:
   ///   An error object with an error message in case of failures.
   SBError GetDescriptionWithFormat(const SBFormat &format, SBStream &output);
 
+  // HACK: cxx-debugging depends on this
+  SBFrame(const lldb::StackFrameSP &lldb_object_sp);
+
 protected:
   friend class SBBlock;
   friend class SBExecutionContext;
@@ -229,8 +232,6 @@ protected:
 
   friend class lldb_private::python::SWIGBridge;
   friend class lldb_private::lua::SWIGBridge;
-
-  SBFrame(const lldb::StackFrameSP &lldb_object_sp);
 
   lldb::StackFrameSP GetFrameSP() const;
 
