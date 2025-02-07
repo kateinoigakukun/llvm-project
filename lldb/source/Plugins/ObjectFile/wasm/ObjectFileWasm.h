@@ -135,6 +135,21 @@ private:
     ConstString name;
   } section_info_t;
 
+  /// Information about an active data segment.
+  typedef struct active_data_segment {
+    /// The offset of the active data segment in the debuggee memory space.
+    lldb::offset_t offset;
+    /// The memory index of the active data segment.
+    uint32_t memory_index;
+    /// The size of the data segment.
+    uint32_t size;
+    /// The name of the data segment derived from "name" section.
+    ConstString name;
+  } active_data_segment_t;
+
+  void CreateActiveDataSegments(lldb::SectionSP data_section_sp);
+  void ParseNameSection(lldb::SectionSP name_section_sp);
+
   /// Wasm section header dump routines.
   /// \{
   void DumpSectionHeader(llvm::raw_ostream &ostream, const section_info_t &sh);
@@ -142,6 +157,7 @@ private:
   /// \}
 
   std::vector<section_info_t> m_sect_infos;
+  std::vector<active_data_segment_t> m_active_data_segments;
   ArchSpec m_arch;
   UUID m_uuid;
 };

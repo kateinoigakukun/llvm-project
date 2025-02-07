@@ -65,6 +65,7 @@
 // FIXME: we should not need this
 #include "Plugins/Language/Swift/SwiftFormatters.h"
 #include "Plugins/Language/Swift/SwiftFrameRecognizers.h"
+#include "Plugins/ObjectFile/wasm/ObjectFileWasm.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -222,6 +223,7 @@ GetObjectFileFormat(llvm::Triple::ObjectFormatType obj_format_type) {
     obj_file_format = std::make_unique<swift::SwiftObjectFileFormatMachO>();
     break;
   case llvm::Triple::ELF:
+  case llvm::Triple::Wasm:
     obj_file_format = std::make_unique<swift::SwiftObjectFileFormatELF>();
     break;
   case llvm::Triple::COFF:
@@ -684,13 +686,14 @@ bool SwiftLanguageRuntime::AddModuleToReflectionContext(
                                                likely_module_names);
   }
 
-  if (load_ptr == 0 || load_ptr == LLDB_INVALID_ADDRESS) {
+  if ((load_ptr == 0 && !llvm::isa<lldb_private::wasm::ObjectFileWasm>(obj_file)) || load_ptr == LLDB_INVALID_ADDRESS) {
     if (obj_file->GetType() != ObjectFile::eTypeJIT)
       LLDB_LOG(GetLog(LLDBLog::Types),
-               "{0}: failed to get start address for \"{1}\".", __FUNCTION__,
+               "{0}: failed to get start address for \"{1}\" ({2}).", __FUNCTION__,
                module_sp->GetObjectName()
                    ? module_sp->GetObjectName()
-                   : obj_file->GetFileSpec().GetFilename());
+                   : obj_file->GetFileSpec().GetFilename(),
+               load_ptr);
     return false;
   }
   bool found = HasReflectionInfo(obj_file);
@@ -698,8 +701,12 @@ bool SwiftLanguageRuntime::AddModuleToReflectionContext(
             found ? "Adding" : "No",
             module_sp->GetObjectName() ? module_sp->GetObjectName()
                                        : obj_file->GetFileSpec().GetFilename());
-  if (!found)
+  if (!found) {
+    StreamFile s(1, false);
+    obj_file->Dump(&s);
+    s.Flush();
     return true;
+  }
 
   auto read_from_file_cache =
       GetMemoryReader()->readMetadataFromFileCacheEnabled();

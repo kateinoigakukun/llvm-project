@@ -17,6 +17,7 @@
 #include "lldb/Utility/DataBufferHeap.h"
 #include "lldb/Utility/LLDBLog.h"
 #include "lldb/Utility/Log.h"
+#include "lldb/lldb-forward.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -24,6 +25,8 @@
 #include "llvm/BinaryFormat/Wasm.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/Format.h"
+#include "llvm/Support/raw_ostream.h"
+#include <cstdint>
 #include <optional>
 
 using namespace lldb;
@@ -170,6 +173,14 @@ bool ObjectFileWasm::DecodeNextSection(lldb::offset_t *offset_ptr) {
   // - the u32 size of the contents, in bytes,
   // - the actual contents.
   uint8_t section_id = data.getU8(c);
+  if (section_id == llvm::wasm::WASM_SEC_DATA) {
+    auto bytes = data.getData().slice(c.tell(), c.tell() + 4);
+    llvm::outs() << "Data section at offset " << c.tell() << ": ";
+    for (uint8_t byte : bytes) {
+      llvm::outs() << llvm::format_hex(byte, 2) << " ";
+    }
+    llvm::outs() << "\n";
+  }
   uint64_t payload_len = data.getULEB128(c);
   if (!c)
     return !llvm::errorToBool(c.takeError());
@@ -192,11 +203,25 @@ bool ObjectFileWasm::DecodeNextSection(lldb::offset_t *offset_ptr) {
     uint32_t section_length = payload_len - (c.tell() - prev_offset);
     m_sect_infos.push_back(section_info{*offset_ptr + c.tell(), section_length,
                                         section_id, *sect_name});
+    llvm::outs() << "Pushing section info:"
+                 << " section id = " << llvm::format_hex(section_id, 2)
+                 << " offset = " << llvm::format_hex(*offset_ptr + c.tell(), 8)
+                 << " offset_ptr = " << llvm::format_hex(*offset_ptr, 8)
+                 << " c.tell() = " << llvm::format_hex(c.tell(), 8)
+                 << " payload_len = " << llvm::format_hex(payload_len, 8)
+                 << " section_length = " << llvm::format_hex(section_length, 8)
+                 << " name = " << sect_name->GetStringRef().str() << "\n";
     *offset_ptr += (c.tell() + section_length);
   } else if (section_id <= llvm::wasm::WASM_SEC_LAST_KNOWN) {
     m_sect_infos.push_back(section_info{*offset_ptr + c.tell(),
                                         static_cast<uint32_t>(payload_len),
                                         section_id, ConstString()});
+    llvm::outs() << "Pushing section info:"
+                 << " section id = " << llvm::format_hex(section_id, 2)
+                 << " offset = " << llvm::format_hex(*offset_ptr + c.tell(), 8)
+                 << " offset_ptr = " << llvm::format_hex(*offset_ptr, 8)
+                 << " c.tell() = " << llvm::format_hex(c.tell(), 8)
+                 << " size = " << llvm::format_hex(payload_len, 8) << "\n";
     *offset_ptr += (c.tell() + payload_len);
   } else {
     // Invalid section id.
@@ -284,7 +309,117 @@ static SectionType GetSectionTypeFromName(llvm::StringRef Name) {
         .Case("types.dwo", eSectionTypeDWARFDebugTypesDwo)
         .Default(eSectionTypeOther);
   }
+  if (Name == "name")
+    return eSectionTypeDebug;
   return eSectionTypeOther;
+}
+
+void ObjectFileWasm::CreateActiveDataSegments(lldb::SectionSP data_section_sp) {
+  llvm::outs() << "Creating active data segments for section at file offset "
+               << data_section_sp->GetFileOffset()
+               << ", vm_addr = " << data_section_sp->GetFileAddress()
+               << ", size = " << data_section_sp->GetByteSize() << "\n";
+  DataExtractor section_header_data = ReadImageData(data_section_sp->GetFileOffset(), data_section_sp->GetByteSize());
+  llvm::DataExtractor data = section_header_data.GetAsLLVM();
+  llvm::DataExtractor::Cursor c(0);
+  uint32_t count = data.getULEB128(c);
+  if (!c)
+    return;
+  for (uint32_t i = 0; i < count; ++i) {
+    uint32_t init_flags = data.getULEB128(c);
+    active_data_segment_t segment;
+    segment.memory_index =
+        (init_flags & llvm::wasm::WASM_DATA_SEGMENT_HAS_MEMINDEX)
+            ? data.getULEB128(c)
+            : 0;
+
+    if ((init_flags & llvm::wasm::WASM_DATA_SEGMENT_IS_PASSIVE) == 0) {
+      // Read the offset of the data segment.
+      // TODO: For now, support only i32.const as the offset expression.
+      uint32_t opcode = data.getU8(c);
+      if (opcode != llvm::wasm::WASM_OPCODE_I32_CONST) {
+        llvm::outs() << "Unsupported offset expression for data segment " << i << "\n";
+        return;
+      }
+      segment.offset = data.getULEB128(c);
+      // Expect the end of the expression.
+      uint8_t end_opcode = data.getU8(c);
+      if (end_opcode != llvm::wasm::WASM_OPCODE_END) {
+        llvm::outs() << "Unexpected opcode " << end_opcode << " at the end of the offset expression for data segment " << i << "\n";
+        return;
+      }
+    }
+    segment.size = data.getULEB128(c);
+    c.seek(c.tell() + segment.size);
+    llvm::outs() << "Data segment " << i << ": offset = " << segment.offset << ", memory_index = " << segment.memory_index << ", size = " << segment.size << "\n";
+    m_active_data_segments.push_back(segment);
+  }
+}
+
+void ObjectFileWasm::ParseNameSection(lldb::SectionSP name_section_sp) {
+  llvm::outs() << "Parsing name section at file offset "
+               << llvm::format_hex(name_section_sp->GetFileOffset(), 8)
+               << " vm_addr = " << llvm::format_hex(name_section_sp->GetFileAddress(), 8)
+               << " size = " << llvm::format_hex(name_section_sp->GetFileSize(), 8) << "\n";
+  DataExtractor section_header_data = ReadImageData(name_section_sp->GetFileOffset(), name_section_sp->GetFileSize());
+  llvm::DataExtractor data = section_header_data.GetAsLLVM();
+  llvm::DataExtractor::Cursor c(0);
+
+  llvm::outs() << "Parsing name section "
+               << " c.tell() = " << llvm::format_hex(c.tell(), 8)
+               << " data.size() = " << llvm::format_hex(data.size(), 8)
+               << " c.tell() < data.size() = " << (c.tell() < data.size())
+               << "\n";
+
+  while (c.tell() < data.size()) {
+    uint8_t type = data.getU8(c);
+    uint32_t size = data.getULEB128(c);
+    if (!c) {
+      llvm::outs() << "Error reading name section at offset " << c.tell() << " "
+                   << llvm::toString(c.takeError()) << "\n";
+      return;
+    }
+    const uint64_t sub_section_end = c.tell() + size;
+
+    llvm::outs() << "Name sub-section type = " << llvm::format_hex(type, 2)
+                 << ", size = " << llvm::format_hex(size, 8) << "\n";
+
+    switch (type) {
+    case llvm::wasm::WASM_NAMES_DATA_SEGMENT: {
+      uint32_t count = data.getULEB128(c);
+      while (count--) {
+        uint32_t index = data.getULEB128(c);
+        std::optional<ConstString> name = GetWasmString(data, c);
+        if (!name)
+          return;
+        if (type == llvm::wasm::WASM_NAMES_DATA_SEGMENT) {
+          if (index >= m_active_data_segments.size()) {
+            llvm::outs() << "Invalid data segment index " << index << "\n";
+            return;
+          }
+          llvm::outs() << "Data segment " << index << ": name = " << name->GetStringRef().str() << "\n";
+          m_active_data_segments[index].name = *name;
+        }
+      }
+      break;
+    }
+    default:
+      // Ignore uninteresting sub-sections.
+      llvm::outs() << "Ignoring uninteresting sub-section type " << llvm::format_hex(type, 2) << " ending at offset " << sub_section_end << "\n";
+      c.seek(sub_section_end);
+      break;
+    }
+    if (c.tell() != sub_section_end) {
+      llvm::outs() << "Name sub-section ended prematurely at offset " << c.tell() << "\n";
+      return;
+    }
+  }
+
+  if (c.tell() != data.size()) {
+    llvm::outs() << "Name section ended prematurely at offset " << c.tell() << "\n";
+    return;
+  }
+  llvm::outs() << "Name section parsed successfully\n";
 }
 
 void ObjectFileWasm::CreateSections(SectionList &unified_section_list) {
@@ -297,12 +432,16 @@ void ObjectFileWasm::CreateSections(SectionList &unified_section_list) {
     DecodeSections();
   }
 
+  SectionSP data_section_sp = nullptr;
+  SectionSP name_section_sp = nullptr;
+
   for (const section_info &sect_info : m_sect_infos) {
     SectionType section_type = eSectionTypeOther;
     ConstString section_name;
     offset_t file_offset = sect_info.offset & 0xffffffff;
     addr_t vm_addr = file_offset;
     size_t vm_size = sect_info.size;
+    std::function<void(SectionSP &)> on_section_created = nullptr;
 
     if (llvm::wasm::WASM_SEC_CODE == sect_info.id) {
       section_type = eSectionTypeCode;
@@ -313,6 +452,13 @@ void ObjectFileWasm::CreateSections(SectionList &unified_section_list) {
       // For this reason Section::GetFileAddress() must return zero for the
       // Code section.
       vm_addr = 0;
+    } else if (llvm::wasm::WASM_SEC_DATA == sect_info.id) {
+      section_type = eSectionTypeData;
+      section_name = ConstString("data");
+      on_section_created = [this](SectionSP &section_sp) {
+        CreateActiveDataSegments(section_sp);
+      };
+      llvm::outs() << "Created data section at file offset " << file_offset << ", vm_addr = " << vm_addr << ", size = " << vm_size << "\n";
     } else {
       section_type = GetSectionTypeFromName(sect_info.name.GetStringRef());
       if (section_type == eSectionTypeOther)
@@ -321,6 +467,12 @@ void ObjectFileWasm::CreateSections(SectionList &unified_section_list) {
       if (!IsInMemory()) {
         vm_size = 0;
         vm_addr = 0;
+      }
+
+      if (sect_info.name == "name") {
+        on_section_created = [&](SectionSP &section_sp) {
+          name_section_sp = section_sp;
+        };
       }
     }
 
@@ -338,8 +490,34 @@ void ObjectFileWasm::CreateSections(SectionList &unified_section_list) {
                     0,              // Alignment of the section
                     0,              // Flags for this section.
                     1));            // Number of host bytes per target byte
+    if (on_section_created) {
+      on_section_created(section_sp);
+    }
     m_sections_up->AddSection(section_sp);
     unified_section_list.AddSection(section_sp);
+  }
+
+  // Assign names to data segments.
+  if (name_section_sp) {
+    ParseNameSection(name_section_sp);
+  }
+
+  // Add the data segments as child sections of the data section.
+  for (const active_data_segment_t &segment : m_active_data_segments) {
+    SectionSP segment_sp(
+      new Section(GetModule(),
+                  this,
+                  eSectionTypeData,
+                  segment.name,
+                  eSectionTypeData,
+                  segment.offset,
+                  segment.size,
+                  segment.offset,
+                  segment.size,
+                  0,
+                  0,
+                  1));
+    data_section_sp->GetChildren().AddSection(segment_sp);
   }
 }
 
