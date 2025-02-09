@@ -710,6 +710,9 @@ bool SwiftLanguageRuntime::AddModuleToReflectionContext(
 
   auto read_from_file_cache =
       GetMemoryReader()->readMetadataFromFileCacheEnabled();
+  llvm::outs() << "[DEBUG] " << __FUNCTION__ << " " << __FILE__ << ":" << __LINE__ << " "
+               << "obj_file->GetPluginName(): " << obj_file->GetPluginName()
+               << "read_from_file_cache: " << read_from_file_cache << "\n";
 
   std::optional<uint32_t> info_id;
   // When dealing with ELF, we need to pass in the contents of the on-disk
@@ -729,6 +732,14 @@ bool SwiftLanguageRuntime::AddModuleToReflectionContext(
     if (!info_id)
       info_id = m_reflection_ctx->AddImage(swift::remote::RemoteAddress(load_ptr),
                                  likely_module_names);
+  } else if (obj_file->GetPluginName().starts_with("wasm")) {
+    DataExtractor extractor;
+    auto size = obj_file->GetData(0, obj_file->GetByteSize(), extractor);
+    const uint8_t *file_data = extractor.GetDataStart();
+    llvm::sys::MemoryBlock file_buffer((void *)file_data, size);
+    info_id = m_reflection_ctx->ReadWasm(swift::remote::RemoteAddress(load_ptr),
+                                         std::optional<llvm::sys::MemoryBlock>(file_buffer),
+                                         likely_module_names);
   } else {
     info_id = m_reflection_ctx->AddImage(swift::remote::RemoteAddress(load_ptr),
                                likely_module_names);

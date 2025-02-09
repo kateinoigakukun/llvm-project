@@ -455,8 +455,9 @@ void ObjectFileWasm::CreateSections(SectionList &unified_section_list) {
     } else if (llvm::wasm::WASM_SEC_DATA == sect_info.id) {
       section_type = eSectionTypeData;
       section_name = ConstString("data");
-      on_section_created = [this](SectionSP &section_sp) {
+      on_section_created = [this, &data_section_sp](SectionSP &section_sp) {
         CreateActiveDataSegments(section_sp);
+        data_section_sp = section_sp;
       };
       llvm::outs() << "Created data section at file offset " << file_offset << ", vm_addr = " << vm_addr << ", size = " << vm_size << "\n";
     } else {
@@ -502,9 +503,10 @@ void ObjectFileWasm::CreateSections(SectionList &unified_section_list) {
     ParseNameSection(name_section_sp);
   }
 
-  // Add the data segments as child sections of the data section.
-  for (const active_data_segment_t &segment : m_active_data_segments) {
-    SectionSP segment_sp(
+  if (data_section_sp) {
+    // Add the data segments as child sections of the data section.
+    for (const active_data_segment_t &segment : m_active_data_segments) {
+      SectionSP segment_sp(
       new Section(GetModule(),
                   this,
                   eSectionTypeData,
@@ -517,7 +519,8 @@ void ObjectFileWasm::CreateSections(SectionList &unified_section_list) {
                   0,
                   0,
                   1));
-    data_section_sp->GetChildren().AddSection(segment_sp);
+      data_section_sp->GetChildren().AddSection(segment_sp);
+    }
   }
 }
 

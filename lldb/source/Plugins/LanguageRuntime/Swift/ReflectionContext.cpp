@@ -130,6 +130,16 @@ public:
     return id;
   }
 
+  std::optional<uint32_t> ReadWasm(
+      swift::remote::RemoteAddress ImageStart,
+      std::optional<llvm::sys::MemoryBlock> FileBuffer,
+      llvm::SmallVector<llvm::StringRef, 1> likely_module_names = {}) override {
+    swift::reflection::ConstMemoryBlock block(FileBuffer->base(), FileBuffer->allocatedSize());
+    auto id = m_reflection_ctx.readWasm(block, likely_module_names);
+    m_forwader.SetImageAdded(id.has_value());
+    return id;
+  }
+
   const swift::reflection::TypeRef *GetTypeRefOrNull(
       StringRef mangled_type_name,
       swift::reflection::DescriptorFinder *descriptor_finder) override {
