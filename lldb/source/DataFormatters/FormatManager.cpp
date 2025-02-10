@@ -636,6 +636,7 @@ template <> const char *FormatterKind<lldb::SyntheticChildrenSP> = "synthetic";
 
 #define FORMAT_LOG(Message) "[%s] " Message, FormatterKind<ImplSP>
 
+extern "C" void emscripten_debugger(void);
 template <typename ImplSP>
 ImplSP FormatManager::Get(ValueObject &valobj,
                           lldb::DynamicValueType use_dynamic) {
@@ -658,7 +659,12 @@ ImplSP FormatManager::Get(ValueObject &valobj,
   }
 
   LLDB_LOGF(log, FORMAT_LOG("Search failed. Giving hardcoded a chance."));
-  return GetHardcoded<ImplSP>(match_data);
+  auto retval_sp = GetHardcoded<ImplSP>(match_data);
+  if (retval_sp) {
+    LLDB_LOGF(log, FORMAT_LOG("Hardcoded search success. Returning."));
+    return retval_sp;
+  }
+  return retval_sp;
 }
 
 template <typename ImplSP>

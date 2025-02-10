@@ -413,6 +413,8 @@ bool lldb_private::formatters::swift::StringGuts_SummaryProvider(
 
 bool lldb_private::formatters::swift::String_SummaryProvider(
     ValueObject &valobj, Stream &stream, const TypeSummaryOptions &options) {
+  llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":" << __LINE__
+               << "\n";
   return String_SummaryProvider(
       valobj, stream, options,
       StringPrinter::ReadStringAndDumpToStreamOptions());

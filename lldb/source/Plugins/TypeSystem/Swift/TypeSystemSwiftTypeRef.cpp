@@ -3601,15 +3601,38 @@ TypeSystemSwiftTypeRef::GetNumChildren(opaque_compiler_type_t type,
   return num_children.takeError();
 }
 
+extern "C" void emscripten_debugger(void);
 uint32_t TypeSystemSwiftTypeRef::GetNumFields(opaque_compiler_type_t type,
                                               ExecutionContext *exe_ctx) {
   LLDB_SCOPED_TIMER();
+  llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":" << __LINE__
+               << " " << AsMangledName(type) << " exe_ctx: " << exe_ctx << "\n";
   auto impl = [&]() -> std::optional<uint32_t> {
-    if (exe_ctx)
-      if (auto *runtime = SwiftLanguageRuntime::Get(exe_ctx->GetProcessSP()))
+    if (exe_ctx) {
+      if (auto *runtime = SwiftLanguageRuntime::Get(exe_ctx->GetProcessSP())) {
+        llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":"
+                     << __LINE__ << " " << AsMangledName(type)
+                     << " runtime: " << runtime << "\n";
         if (auto num_fields =
-                runtime->GetNumFields(GetCanonicalType(type), exe_ctx))
+                runtime->GetNumFields(GetCanonicalType(type), exe_ctx)) {
+          llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":"
+                       << __LINE__ << " " << AsMangledName(type)
+                       << " num_fields: " << *num_fields << "\n";
           return num_fields;
+        } else {
+          llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":"
+                       << __LINE__ << " " << AsMangledName(type)
+                       << " failed to get num_fields\n";
+        }
+      } else {
+        llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":"
+                     << __LINE__ << " " << AsMangledName(type)
+                     << " no runtime?\n";
+      }
+    } else {
+      llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":" << __LINE__
+                   << " " << AsMangledName(type) << " no exe_ctx?\n";
+    }
 
     bool is_imported = false;
     if (auto clang_type = GetAsClangTypeOrNull(type, &is_imported)) {
@@ -4589,6 +4612,11 @@ void TypeSystemSwiftTypeRef::DumpTypeDescription(
     bool print_extensions_if_available, lldb::DescriptionLevel level,
     ExecutionContextScope *exe_scope) {
   LLDB_SCOPED_TIMER();
+  llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":" << __LINE__
+               << " " << AsMangledName(type)
+               << " level: " << level
+               << " exe_scope: " << exe_scope
+               << "\n";
   StreamFile s(stdout, false);
   DumpTypeDescription(type, &s, print_help_if_available,
                       print_extensions_if_available, level, exe_scope);
@@ -4599,6 +4627,11 @@ void TypeSystemSwiftTypeRef::DumpTypeDescription(
     bool print_extensions_if_available, lldb::DescriptionLevel level,
     ExecutionContextScope *exe_scope) {
   LLDB_SCOPED_TIMER();
+  llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":" << __LINE__
+               << " " << AsMangledName(type)
+               << " level: " << level
+               << " exe_scope: " << exe_scope
+               << "\n";
   // Currently, we need an execution scope so we can access the runtime, which
   // in turn owns the reflection context, which is used to read the typeref. If
   // we were to decouple the reflection context from the runtime, we'd be able
@@ -4611,7 +4644,13 @@ void TypeSystemSwiftTypeRef::DumpTypeDescription(
       runtime->DumpTyperef({weak_from_this(), type}, this, s);
       if (s->GetWrittenBytes() == initial_written_bytes)
         s->Printf("<could not resolve type>\n");
+    } else {
+      llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":" << __LINE__
+                   << " " << AsMangledName(type) << " no runtime?\n";
     }
+  } else {
+    llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":" << __LINE__
+                 << " " << AsMangledName(type) << " no exe_scope?\n";
   }
 
   // Also dump the swift ast context info, as this functions should not be in

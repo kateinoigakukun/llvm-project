@@ -838,25 +838,43 @@ SwiftLanguageRuntime::GetNumChildren(CompilerType type,
                                  type.GetMangledTypeName().GetString());
 }
 
+extern "C" void emscripten_debugger(void);
 std::optional<unsigned>
 SwiftLanguageRuntime::GetNumFields(CompilerType type,
                                    ExecutionContext *exe_ctx) {
+  llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":" << __LINE__
+               << " " << type.GetMangledTypeName().GetStringRef() << " exe_ctx: "
+               << exe_ctx << "\n";
+  // emscripten_debugger();
+
   auto ts = type.GetTypeSystem().dyn_cast_or_null<TypeSystemSwiftTypeRef>();
-  if (!ts)
+  if (!ts) {
+    llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":" << __LINE__
+                 << " " << type.GetMangledTypeName().GetStringRef() << " no ts?\n";
     return {};
+  }
 
   using namespace swift::reflection;
   // Try the static type metadata.
   const TypeRef *tr = nullptr;
   auto *ti = GetSwiftRuntimeTypeInfo(
       type, exe_ctx ? exe_ctx->GetBestExecutionContextScope() : nullptr, &tr);
-  if (!ti)
+  if (!ti) {
+    llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":" << __LINE__
+                 << " " << type.GetMangledTypeName().GetStringRef() << " no ti?\n";
     return {};
+  }
+  llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":" << __LINE__
+               << " " << type.GetMangledTypeName().GetStringRef() << " ti: "
+               << ti << "\n";
   // Structs and Tuples.
   switch (ti->getKind()) {
   case TypeInfoKind::Record: {
     // Structs and Tuples.
     auto *rti = llvm::cast<RecordTypeInfo>(ti);
+    llvm::outs() << "[DEBUG] " << __func__ << " " << __FILE__ << ":" << __LINE__
+                 << " " << type.GetMangledTypeName().GetStringRef() << " rti: "
+                 << rti << "\n";
     switch (rti->getRecordKind()) {
     case RecordKind::ExistentialMetatype:
     case RecordKind::ThickFunction:
