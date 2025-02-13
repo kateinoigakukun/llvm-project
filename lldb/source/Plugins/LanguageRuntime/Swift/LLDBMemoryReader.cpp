@@ -155,6 +155,7 @@ GetSwiftObjectFileFormat(llvm::Triple::ObjectFormatType obj_format_type) {
     obj_file_format = std::make_unique<swift::SwiftObjectFileFormatMachO>();
     break;
   case llvm::Triple::ELF:
+  case llvm::Triple::Wasm:
     obj_file_format = std::make_unique<swift::SwiftObjectFileFormatELF>();
     break;
   case llvm::Triple::COFF:

@@ -72,6 +72,7 @@
 // FIXME: we should not need this
 #include "Plugins/Language/Swift/SwiftFormatters.h"
 #include "Plugins/Language/Swift/SwiftFrameRecognizers.h"
+#include "Plugins/ObjectFile/wasm/ObjectFileWasm.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -298,6 +299,7 @@ GetObjectFileFormat(llvm::Triple::ObjectFormatType obj_format_type) {
     obj_file_format = std::make_unique<swift::SwiftObjectFileFormatMachO>();
     break;
   case llvm::Triple::ELF:
+  case llvm::Triple::Wasm:
     obj_file_format = std::make_unique<swift::SwiftObjectFileFormatELF>();
     break;
   case llvm::Triple::COFF:
@@ -760,7 +762,7 @@ bool SwiftLanguageRuntime::AddModuleToReflectionContext(
                                                likely_module_names);
   }
 
-  if (load_ptr == 0 || load_ptr == LLDB_INVALID_ADDRESS) {
+  if ((load_ptr == 0 && !llvm::isa<lldb_private::wasm::ObjectFileWasm>(obj_file)) || load_ptr == LLDB_INVALID_ADDRESS) {
     if (obj_file->GetType() != ObjectFile::eTypeJIT)
       LLDB_LOG(GetLog(LLDBLog::Types),
                "{0}: failed to get start address for \"{1}\".", __FUNCTION__,
@@ -798,6 +800,14 @@ bool SwiftLanguageRuntime::AddModuleToReflectionContext(
     if (!info_id)
       info_id = m_reflection_ctx->AddImage(swift::remote::RemoteAddress(load_ptr),
                                  likely_module_names);
+  } else if (obj_file->GetPluginName().starts_with("wasm")) {
+    DataExtractor extractor;
+    auto size = obj_file->GetData(0, obj_file->GetByteSize(), extractor);
+    const uint8_t *file_data = extractor.GetDataStart();
+    llvm::sys::MemoryBlock file_buffer((void *)file_data, size);
+    info_id = m_reflection_ctx->ReadWasm(swift::remote::RemoteAddress(load_ptr),
+                                         std::optional<llvm::sys::MemoryBlock>(file_buffer),
+                                         likely_module_names);
   } else {
     info_id = m_reflection_ctx->AddImage(swift::remote::RemoteAddress(load_ptr),
                                likely_module_names);

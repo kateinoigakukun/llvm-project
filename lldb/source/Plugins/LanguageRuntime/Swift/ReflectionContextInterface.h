@@ -83,6 +83,10 @@ public:
   ReadELF(swift::remote::RemoteAddress ImageStart,
           std::optional<llvm::sys::MemoryBlock> FileBuffer,
           llvm::SmallVector<llvm::StringRef, 1> likely_module_names = {}) = 0;
+  virtual std::optional<uint32_t>
+  ReadWasm(swift::remote::RemoteAddress ImageStart,
+          std::optional<llvm::sys::MemoryBlock> FileBuffer,
+          llvm::SmallVector<llvm::StringRef, 1> likely_module_names = {}) = 0;
   virtual const swift::reflection::TypeRef *GetTypeRefOrNull(
       llvm::StringRef mangled_type_name,
       swift::reflection::DescriptorFinder *descriptor_finder) = 0;
