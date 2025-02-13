@@ -85,7 +85,7 @@ void SwiftLanguage::Initialize() {
       .emplace(g_NSArrayClass1,
                lldb_private::formatters::swift::ArraySyntheticFrontEndCreator);
 
-  initializeSwiftModules();
+  // initializeSwiftModules();
 }
 
 void SwiftLanguage::Terminate() {
