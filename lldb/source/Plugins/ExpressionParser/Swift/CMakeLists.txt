@@ -45,6 +45,7 @@ add_lldb_library(lldbPluginExpressionParserSwift PLUGIN
     Core
   )
 
+if(FALSE)
 if(BOOTSTRAPPING_MODE)
   target_link_libraries(lldbPluginExpressionParserSwift
     PRIVATE
@@ -66,4 +67,5 @@ else()
   target_link_libraries(lldbPluginExpressionParserSwift
     PRIVATE
       swiftCompilerStub)
+endif()
 endif()

@@ -57,17 +57,21 @@ function(llvm_create_cross_target project_name target_name toolchain buildtype)
 
   string(REPLACE ";" "$<SEMICOLON>" llvm_enable_projects_arg
          "${LLVM_ENABLE_PROJECTS}")
-  string(REPLACE ";" "$<SEMICOLON>" llvm_external_projects_arg
-         "${LLVM_EXTERNAL_PROJECTS}")
+  # HACK: Disable configuring Swift external projects for host
+  # string(REPLACE ";" "$<SEMICOLON>" llvm_external_projects_arg
+  #        "${LLVM_EXTERNAL_PROJECTS}")
+  set(llvm_external_projects_arg)
+
   string(REPLACE ";" "$<SEMICOLON>" llvm_enable_runtimes_arg
          "${LLVM_ENABLE_RUNTIMES}")
 
   set(external_project_source_dirs)
-  foreach(project ${LLVM_EXTERNAL_PROJECTS})
-    canonicalize_tool_name(${project} name)
-    list(APPEND external_project_source_dirs
-         "-DLLVM_EXTERNAL_${name}_SOURCE_DIR=${LLVM_EXTERNAL_${name}_SOURCE_DIR}")
-  endforeach()
+  # HACK: Disable configuring Swift external projects for host
+  # foreach(project ${LLVM_EXTERNAL_PROJECTS})
+  #   canonicalize_tool_name(${project} name)
+  #   list(APPEND external_project_source_dirs
+  #        "-DLLVM_EXTERNAL_${name}_SOURCE_DIR=${LLVM_EXTERNAL_${name}_SOURCE_DIR}")
+  # endforeach()
 
   if("libc" IN_LIST LLVM_ENABLE_PROJECTS AND NOT LIBC_HDRGEN_EXE)
     set(libc_flags -DLLVM_LIBC_FULL_BUILD=ON -DLIBC_HDRGEN_ONLY=ON)

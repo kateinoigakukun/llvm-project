@@ -351,33 +351,36 @@ endif()
 set(clang_headers_target ${CLANG_RESOURCE_PATH}/include)
 set(SWIFT_RESOURCE_PATH "${SWIFT_BINARY_DIR}/lib${LLVM_LIBDIR_SUFFIX}/swift")
 if(NOT LLDB_BUILT_STANDALONE)
-  set(clang_headers_target clang-resource-headers symlink_clang_headers)
+  set(clang_headers_target clang-resource-headers)
+  if(TARGET symlink_clang_headers)
+    list(APPEND clang_headers_target symlink_clang_headers)
+  endif()
 endif()
 
-# Copy the clang resource directory.
-if (LLDB_ENABLE_SWIFT_SUPPORT)
-add_custom_command_target(
-    copy-clang-resource-dir
-    COMMAND "${CMAKE_COMMAND}" "-E" "copy_directory" "${CLANG_RESOURCE_PATH}" "${lib_dir}/lldb/clang/"
-    OUTPUT "${lib_dir}/lldb/clang/"
-    VERBATIM
-    ALL
-    DEPENDS ${clang_headers_target})
-
-# Only copy the swift resource directory if you are building lldb standalone.
-# Otherwise, just rely on the swift libdir available from the swift build.
-if(LLDB_BUILT_STANDALONE)
-  add_custom_command_target(
-      copy-swift-resource-dir
-      COMMAND "${CMAKE_COMMAND}" "-E" "copy_directory" "${SWIFT_RESOURCE_PATH}" "${lib_dir}/lldb/swift/"
-      OUTPUT "${lib_dir}/lldb/swift/"
-      VERBATIM
-      ALL
-      DEPENDS ${SWIFT_RESOURCE_PATH})
-endif()
-
-add_dependencies(liblldb ${copy-clang-resource-dir} ${copy-swift-resource-dir})
-endif()
+# # Copy the clang resource directory.
+# if (LLDB_ENABLE_SWIFT_SUPPORT)
+# add_custom_command_target(
+#     copy-clang-resource-dir
+#     COMMAND "${CMAKE_COMMAND}" "-E" "copy_directory" "${CLANG_RESOURCE_PATH}" "${lib_dir}/lldb/clang/"
+#     OUTPUT "${lib_dir}/lldb/clang/"
+#     VERBATIM
+#     ALL
+#     DEPENDS ${clang_headers_target})
+# 
+# # Only copy the swift resource directory if you are building lldb standalone.
+# # Otherwise, just rely on the swift libdir available from the swift build.
+# if(LLDB_BUILT_STANDALONE)
+#   add_custom_command_target(
+#       copy-swift-resource-dir
+#       COMMAND "${CMAKE_COMMAND}" "-E" "copy_directory" "${SWIFT_RESOURCE_PATH}" "${lib_dir}/lldb/swift/"
+#       OUTPUT "${lib_dir}/lldb/swift/"
+#       VERBATIM
+#       ALL
+#       DEPENDS ${SWIFT_RESOURCE_PATH})
+# endif()
+# 
+# add_dependencies(liblldb ${copy-clang-resource-dir} ${copy-swift-resource-dir})
+# endif()
 
 install(
   CODE "file(MAKE_DIRECTORY ${lib_dir}/lldb)")
