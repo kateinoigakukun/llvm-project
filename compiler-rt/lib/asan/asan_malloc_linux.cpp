@@ -15,7 +15,7 @@
 
 #include "sanitizer_common/sanitizer_platform.h"
 #if SANITIZER_FREEBSD || SANITIZER_FUCHSIA || SANITIZER_LINUX || \
-    SANITIZER_NETBSD || SANITIZER_SOLARIS || SANITIZER_HAIKU
+    SANITIZER_NETBSD || SANITIZER_SOLARIS || SANITIZER_HAIKU || SANITIZER_WASI
 
 #  include "asan_allocator.h"
 #  include "asan_interceptors.h"
@@ -81,6 +81,10 @@ INTERCEPTOR(void*, realloc, void *ptr, uptr size) {
   GET_STACK_TRACE_MALLOC;
   return asan_realloc(ptr, size, &stack);
 }
+
+extern "C" void *__libc_malloc(uptr) __attribute__((alias("malloc")));
+extern "C" void __libc_free(void *) __attribute__((alias("free")));
+extern "C" void *__libc_calloc(uptr nmemb, uptr size) __attribute__((alias("calloc")));
 
 #if SANITIZER_INTERCEPT_REALLOCARRAY
 INTERCEPTOR(void*, reallocarray, void *ptr, uptr nmemb, uptr size) {
