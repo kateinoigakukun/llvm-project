@@ -29,7 +29,9 @@ set(ASAN_SOURCES
   asan_stats.cpp
   asan_suppressions.cpp
   asan_thread.cpp
+  asan_wasi.cpp
   asan_win.cpp
+  wasi/memset.c
   )
 
 if(WIN32)
