@@ -37,6 +37,8 @@ set(ASAN_SOURCES
   asan_suppressions.cpp
   asan_thread.cpp
   asan_win.cpp
+  wasi/memset.c
+  wasi/memcpy.c
   )
 
 if(WIN32)
