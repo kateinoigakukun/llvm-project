@@ -28,6 +28,13 @@ namespace __sanitizer {
 #  define errno_ERANGE (0x80007000 + 17)
 #  define errno_ENAMETOOLONG (0x80000000 + 0x6004)
 #  define errno_ENOSYS (0x80007009)
+#elif defined(__wasi__)
+#  define errno_ENOMEM 48
+#  define errno_EBUSY 10
+#  define errno_EINVAL 28
+#  define errno_ERANGE 68
+#  define errno_ENAMETOOLONG 37
+#  define errno_ENOSYS 52
 #else
 #  define errno_ENOMEM 12
 #  define errno_EBUSY 16
